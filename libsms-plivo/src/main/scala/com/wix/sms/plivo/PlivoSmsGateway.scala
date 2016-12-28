@@ -21,14 +21,23 @@ class PlivoSmsGateway(requestFactory: HttpRequestFactory,
                       readTimeout: Option[Duration] = None,
                       numberOfRetries: Int = 0,
                       credentials: Credentials) extends SmsGateway {
-  private val requestParser = new SendMessageRequestParser
-  private val responseParser = new SendMessageResponseParser
-
-  private def createBasicAuthorization(user: String, password: String): String = {
-    s"Basic ${Base64.encodeBase64String(s"$user:$password".getBytes("UTF-8"))}"
+  override def sendPlain(sender: Sender, destPhone: String, text: String): Try[String] = {
+    send(
+      sender = sender,
+      destPhone = destPhone,
+      text = text
+    )
   }
 
-  override def sendPlain(sender: Sender, destPhone: String, text: String): Try[String] = {
+  override def sendUnicode(sender: Sender, destPhone: String, text: String): Try[String] = {
+    send(
+      sender = sender,
+      destPhone = destPhone,
+      text = text
+    )
+  }
+
+  private def send(sender: Sender, destPhone: String, text: String): Try[String] = {
     Try {
       val request = PlivoHelper.createSendMessageRequest(
         sender = sender,
@@ -36,11 +45,11 @@ class PlivoSmsGateway(requestFactory: HttpRequestFactory,
         text = text
       )
 
-      val requestJson = requestParser.stringify(request)
+      val requestJson = SendMessageRequestParser.stringify(request)
 
       val httpRequest = requestFactory.buildPostRequest(
         new GenericUrl(s"${endpoint}Account/${credentials.authId}/Message/"),
-        new ByteArrayContent("application/json", requestJson.getBytes("UTF-8")))
+        new ByteArrayContent("application/json; charset=utf-8", requestJson.getBytes("UTF-8")))
 
       connectTimeout.foreach { duration => httpRequest.setConnectTimeout(duration.toMillis.toInt) }
       readTimeout.foreach { duration => httpRequest.setReadTimeout(duration.toMillis.toInt) }
@@ -53,22 +62,22 @@ class PlivoSmsGateway(requestFactory: HttpRequestFactory,
 
       val httpResponse = httpRequest.execute()
       val responseJson = extractAndCloseResponse(httpResponse)
-      val response = responseParser.parse(responseJson)
+      val response = SendMessageResponseParser.parse(responseJson)
 
       response.error match {
-        case Some(error) => throw new SmsErrorException(message = error)
+        case Some(error) => throw SmsErrorException(message = error)
         case None => response.message_uuid.get.head
       }
     } match {
       case Success(msgUuid) => Success(msgUuid)
       case Failure(e: SmsException) => Failure(e)
-      case Failure(e: IOException) => Failure(new CommunicationException(e.getMessage, e))
-      case Failure(e) => Failure(new SmsErrorException(e.getMessage, e))
+      case Failure(e: IOException) => Failure(CommunicationException(e.getMessage, e))
+      case Failure(e) => Failure(SmsErrorException(e.getMessage, e))
     }
   }
 
-  override def sendUnicode(sender: Sender, destPhone: String, text: String): Try[String] = {
-    ???
+  private def createBasicAuthorization(user: String, password: String): String = {
+    s"Basic ${Base64.encodeBase64String(s"$user:$password".getBytes("UTF-8"))}"
   }
 
   private def extractAndCloseResponse(httpResponse: HttpResponse): String = {

@@ -9,19 +9,17 @@ import spray.http._
 
 class PlivoDriver(port: Int) {
   private val probe = new EmbeddedHttpProbe(port, EmbeddedHttpProbe.NotFoundHandler)
-  private val sendMessageRequestParser = new SendMessageRequestParser
-  private val sendMessageResponseParser = new SendMessageResponseParser
 
-  def startProbe() {
+  def start() {
     probe.doStart()
   }
 
-  def stopProbe() {
+  def stop() {
     probe.doStop()
   }
 
-  def resetProbe() {
-    probe.handlers.clear()
+  def reset() {
+    probe.reset()
   }
 
   def aSendMessageFor(credentials: Credentials, sender: Sender, destPhone: String, text: String): SendMessageCtx = {
@@ -45,7 +43,7 @@ class PlivoDriver(port: Int) {
         message_uuid = Some(Seq(msgId))
       )
 
-      val responseJson = sendMessageResponseParser.stringify(response)
+      val responseJson = SendMessageResponseParser.stringify(response)
       returnsJson(responseJson)
     }
 
@@ -55,7 +53,7 @@ class PlivoDriver(port: Int) {
         error = Some(error)
       )
 
-      val responseJson = sendMessageResponseParser.stringify(response)
+      val responseJson = SendMessageResponseParser.stringify(response)
       returnsJson(responseJson)
     }
 
@@ -76,7 +74,7 @@ class PlivoDriver(port: Int) {
 
     private def isStubbedRequestEntity(entity: HttpEntity): Boolean = {
       val requestJson = entity.asString
-      val request = sendMessageRequestParser.parse(requestJson)
+      val request = SendMessageRequestParser.parse(requestJson)
 
       request == expectedRequest
     }

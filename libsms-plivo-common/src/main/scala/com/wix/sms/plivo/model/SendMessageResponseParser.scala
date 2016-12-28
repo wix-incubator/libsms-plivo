@@ -3,8 +3,8 @@ package com.wix.sms.plivo.model
 import org.json4s.DefaultFormats
 import org.json4s.native.Serialization
 
-class SendMessageResponseParser {
-  implicit val formats = DefaultFormats
+object SendMessageResponseParser {
+  private implicit val formats = DefaultFormats
 
   def stringify(obj: SendMessageResponse): String = {
     Serialization.write(obj)

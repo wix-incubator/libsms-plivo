@@ -13,7 +13,7 @@ class PlivoSmsGatewayIT extends SpecWithJUnit {
 
   val driver = new PlivoDriver(port = plivoPort)
   step {
-    driver.startProbe()
+    driver.start()
   }
 
   sequential
@@ -29,7 +29,8 @@ class PlivoSmsGatewayIT extends SpecWithJUnit {
     val someSender = Sender(
       phone = Some("+12125554321")
     )
-    val someText = "some text"
+    val somePlainText = "some plain text"
+    val someUnicodeText = "some יוניקוד text"
     val someMessageId = "someMessageId"
 
     val plivo: SmsGateway = new PlivoSmsGateway(
@@ -38,7 +39,7 @@ class PlivoSmsGatewayIT extends SpecWithJUnit {
       credentials = someCredentials
     )
 
-    driver.resetProbe()
+    driver.reset()
   }
 
   "sendPlain" should {
@@ -47,7 +48,7 @@ class PlivoSmsGatewayIT extends SpecWithJUnit {
         credentials = someCredentials,
         sender = someSender,
         destPhone = someDestPhone,
-        text = someText
+        text = somePlainText
       ) returns(
           msgId = someMessageId
       )
@@ -55,7 +56,7 @@ class PlivoSmsGatewayIT extends SpecWithJUnit {
       plivo.sendPlain(
         sender = someSender,
         destPhone = someDestPhone,
-        text = someText
+        text = somePlainText
       ) must beASuccessfulTry(
         check = ===(someMessageId)
       )
@@ -68,7 +69,7 @@ class PlivoSmsGatewayIT extends SpecWithJUnit {
         credentials = someCredentials,
         sender = someSender,
         destPhone = someDestPhone,
-        text = someText
+        text = somePlainText
       ) failsWith(
         error = someError
       )
@@ -76,7 +77,49 @@ class PlivoSmsGatewayIT extends SpecWithJUnit {
       plivo.sendPlain(
         sender = someSender,
         destPhone = someDestPhone,
-        text = someText
+        text = somePlainText
+      ) must beAFailedTry.like {
+        case e: SmsErrorException => e.message must contain(someError)
+      }
+    }
+  }
+
+  "sendUnicode" should {
+    "successfully yield a message ID on valid request" in new Ctx {
+      driver.aSendMessageFor(
+        credentials = someCredentials,
+        sender = someSender,
+        destPhone = someDestPhone,
+        text = someUnicodeText
+      ) returns(
+        msgId = someMessageId
+      )
+
+      plivo.sendUnicode(
+        sender = someSender,
+        destPhone = someDestPhone,
+        text = someUnicodeText
+      ) must beASuccessfulTry(
+        check = ===(someMessageId)
+      )
+    }
+
+    "gracefully fail on error" in new Ctx {
+      val someError = "some error"
+
+      driver.aSendMessageFor(
+        credentials = someCredentials,
+        sender = someSender,
+        destPhone = someDestPhone,
+        text = someUnicodeText
+      ) failsWith(
+        error = someError
+        )
+
+      plivo.sendUnicode(
+        sender = someSender,
+        destPhone = someDestPhone,
+        text = someUnicodeText
       ) must beAFailedTry.like {
         case e: SmsErrorException => e.message must contain(someError)
       }
@@ -84,6 +127,6 @@ class PlivoSmsGatewayIT extends SpecWithJUnit {
   }
 
   step {
-    driver.stopProbe()
+    driver.stop()
   }
 }

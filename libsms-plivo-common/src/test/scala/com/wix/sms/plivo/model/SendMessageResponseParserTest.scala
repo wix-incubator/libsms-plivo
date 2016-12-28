@@ -10,14 +10,12 @@ class SendMessageResponseParserTest extends SpecWithJUnit {
       error = Some("some error"),
       message_uuid = Some(Seq("1", "2"))
     )
-
-    val parser = new SendMessageResponseParser
   }
 
   "stringify and then parse" should {
     "yield an object similar to the original one" in new Ctx {
-      val json = parser.stringify(someSendMessageResponse)
-      parser.parse(json) must beEqualTo(someSendMessageResponse)
+      val json = SendMessageResponseParser.stringify(someSendMessageResponse)
+      SendMessageResponseParser.parse(json) must beEqualTo(someSendMessageResponse)
     }
   }
 }
