@@ -41,12 +41,6 @@ class PlivoSmsGatewayIT extends SpecWithJUnit {
     driver.resetProbe()
   }
 
-  "getId" should {
-    "return the ID" in new Ctx {
-      plivo.getId must beEqualTo(PlivoSmsGateway.id)
-    }
-  }
-
   "sendPlain" should {
     "successfully yield a message ID on valid request" in new Ctx {
       driver.aSendMessageFor(

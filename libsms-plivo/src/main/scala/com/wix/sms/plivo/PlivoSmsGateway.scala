@@ -24,8 +24,6 @@ class PlivoSmsGateway(requestFactory: HttpRequestFactory,
   private val requestParser = new SendMessageRequestParser
   private val responseParser = new SendMessageResponseParser
 
-  override def getId: String = PlivoSmsGateway.id
-
   private def createBasicAuthorization(user: String, password: String): String = {
     s"Basic ${Base64.encodeBase64String(s"$user:$password".getBytes("UTF-8"))}"
   }
@@ -69,6 +67,10 @@ class PlivoSmsGateway(requestFactory: HttpRequestFactory,
     }
   }
 
+  override def sendUnicode(sender: Sender, destPhone: String, text: String): Try[String] = {
+    ???
+  }
+
   private def extractAndCloseResponse(httpResponse: HttpResponse): String = {
     try {
       httpResponse.parseAsString()
@@ -76,8 +78,4 @@ class PlivoSmsGateway(requestFactory: HttpRequestFactory,
       httpResponse.ignore()
     }
   }
-}
-
-object PlivoSmsGateway {
-  val id = "com.plivo"
 }
