@@ -10,15 +10,15 @@ import spray.http._
 class PlivoDriver(port: Int) {
   private val probe = new EmbeddedHttpProbe(port, EmbeddedHttpProbe.NotFoundHandler)
 
-  def start() {
+  def start(): Unit = {
     probe.doStart()
   }
 
-  def stop() {
+  def stop(): Unit = {
     probe.doStop()
   }
 
-  def reset() {
+  def reset(): Unit = {
     probe.reset()
   }
 
@@ -37,27 +37,37 @@ class PlivoDriver(port: Int) {
       text = text
     )
 
-    def returns(msgId: String) = {
-      val response = new SendMessageResponse(
+    def returns(msgId: String): Unit = {
+      val response = SendMessageResponse(
         api_id = "some api id",
         message_uuid = Some(Seq(msgId))
       )
 
       val responseJson = SendMessageResponseParser.stringify(response)
-      returnsJson(responseJson)
+      returnsJson(StatusCodes.OK, responseJson)
     }
 
-    def failsWith(error: String) = {
-      val response = new SendMessageResponse(
+    def failsWith(error: String): Unit = {
+      val response = SendMessageResponse(
         api_id = "some api id",
         error = Some(error)
       )
 
       val responseJson = SendMessageResponseParser.stringify(response)
-      returnsJson(responseJson)
+      returnsJson(StatusCodes.OK, responseJson)
     }
 
-    private def returnsJson(responseJson: String): Unit = {
+    def failsOnLandLineDestination(): Unit = {
+      val response = SendMessageResponse(
+        api_id = "some api id",
+        error = Some("No rate/prefix matching dst number")
+      )
+
+      val responseJson = SendMessageResponseParser.stringify(response)
+      returnsJson(StatusCodes.BadRequest, responseJson)
+    }
+
+    private def returnsJson(statusCode: StatusCode, responseJson: String): Unit = {
       val path = s"/Account/${credentials.authId}/Message/"
       probe.handlers += {
         case HttpRequest(
@@ -67,7 +77,7 @@ class PlivoDriver(port: Int) {
         entity,
         _) if isStubbedRequestEntity(entity) && isStubbedHeaders(headers) =>
           HttpResponse(
-            status = StatusCodes.OK,
+            status = statusCode,
             entity = HttpEntity(ContentTypes.`application/json`, responseJson))
       }
     }

@@ -62,6 +62,23 @@ class PlivoSmsGatewayIT extends SpecWithJUnit {
       )
     }
 
+    "gracefully fails on land-line numbers" in new Ctx {
+      driver.aSendMessageFor(
+        credentials = someCredentials,
+        sender = someSender,
+        destPhone = someDestPhone,
+        text = somePlainText
+      ) failsOnLandLineDestination()
+
+      plivo.sendPlain(
+        sender = someSender,
+        destPhone = someDestPhone,
+        text = somePlainText
+      ) must beAFailedTry(
+        check = beAnInstanceOf[SmsErrorException]
+      )
+    }
+
     "gracefully fail on error" in new Ctx {
       val someError = "some error"
 
@@ -101,6 +118,23 @@ class PlivoSmsGatewayIT extends SpecWithJUnit {
         text = someUnicodeText
       ) must beASuccessfulTry(
         check = ===(someMessageId)
+      )
+    }
+
+    "gracefully fails on land-line numbers" in new Ctx {
+      driver.aSendMessageFor(
+        credentials = someCredentials,
+        sender = someSender,
+        destPhone = someDestPhone,
+        text = somePlainText
+      ) failsOnLandLineDestination()
+
+      plivo.sendUnicode(
+        sender = someSender,
+        destPhone = someDestPhone,
+        text = somePlainText
+      ) must beAFailedTry(
+        check = beAnInstanceOf[SmsErrorException]
       )
     }
 

@@ -54,6 +54,7 @@ class PlivoSmsGateway(requestFactory: HttpRequestFactory,
       connectTimeout.foreach { duration => httpRequest.setConnectTimeout(duration.toMillis.toInt) }
       readTimeout.foreach { duration => httpRequest.setReadTimeout(duration.toMillis.toInt) }
       httpRequest.setNumberOfRetries(numberOfRetries)
+      httpRequest.setThrowExceptionOnExecuteError(false)
 
       httpRequest.getHeaders.setAuthorization(createBasicAuthorization(
         user = credentials.authId,
