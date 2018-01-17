@@ -1,25 +1,34 @@
 package com.wix.sms.plivo.testkit
 
+import java.util.concurrent.atomic.AtomicReference
+
+import akka.http.scaladsl.model._
 import com.google.api.client.util.Base64
-import com.wix.hoopoe.http.testkit.EmbeddedHttpProbe
+import com.wix.e2e.http.RequestHandler
+import com.wix.e2e.http.server.WebServerFactory.aMockWebServerWith
+import com.wix.e2e.http.client.extractors.HttpMessageExtractors._
 import com.wix.sms.model.Sender
 import com.wix.sms.plivo.model.{SendMessageRequestParser, SendMessageResponse, SendMessageResponseParser}
 import com.wix.sms.plivo.{Credentials, PlivoHelper}
-import spray.http._
 
 class PlivoDriver(port: Int) {
-  private val probe = new EmbeddedHttpProbe(port, EmbeddedHttpProbe.NotFoundHandler)
+  private val delegatingHandler: RequestHandler = { case r: HttpRequest => handler.get().apply(r) }
+  private val notFoundHandler: RequestHandler = { case _: HttpRequest => HttpResponse(status = StatusCodes.NotFound) }
 
-  def start(): Unit = {
-    probe.doStart()
+  private val handler = new AtomicReference(notFoundHandler)
+
+  private val probe = aMockWebServerWith(delegatingHandler).onPort(port).build
+
+  def start() {
+    probe.start()
   }
 
-  def stop(): Unit = {
-    probe.doStop()
+  def stop() {
+    probe.stop()
   }
 
-  def reset(): Unit = {
-    probe.reset()
+  def reset() {
+    handler.set(notFoundHandler)
   }
 
   def aSendMessageFor(credentials: Credentials, sender: Sender, destPhone: String, text: String): SendMessageCtx = {
@@ -29,6 +38,9 @@ class PlivoDriver(port: Int) {
       destPhone = destPhone,
       text = text)
   }
+
+  private def prependHandler(handle: RequestHandler) =
+    handler.set(handle orElse handler.get())
 
   class SendMessageCtx(credentials: Credentials, sender: Sender, destPhone: String, text: String) {
     private val expectedRequest = PlivoHelper.createSendMessageRequest(
@@ -69,7 +81,7 @@ class PlivoDriver(port: Int) {
 
     private def returnsJson(statusCode: StatusCode, responseJson: String): Unit = {
       val path = s"/Account/${credentials.authId}/Message/"
-      probe.handlers += {
+      prependHandler({
         case HttpRequest(
         HttpMethods.POST,
         Uri.Path(`path`),
@@ -79,11 +91,11 @@ class PlivoDriver(port: Int) {
           HttpResponse(
             status = statusCode,
             entity = HttpEntity(ContentTypes.`application/json`, responseJson))
-      }
+      })
     }
 
     private def isStubbedRequestEntity(entity: HttpEntity): Boolean = {
-      val requestJson = entity.asString
+      val requestJson = entity.extractAsString
       val request = SendMessageRequestParser.parse(requestJson)
 
       request == expectedRequest
@@ -93,7 +105,7 @@ class PlivoDriver(port: Int) {
       val expectedAuthorizationValue = s"Basic ${Base64.encodeBase64String(s"${credentials.authId}:${credentials.authToken}".getBytes("UTF-8"))}"
 
       headers.exists { header =>
-        header.name == HttpHeaders.Authorization.name &&
+        header.name == "Authorization" &&
           header.value == expectedAuthorizationValue
       }
     }
